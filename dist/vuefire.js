@@ -328,7 +328,7 @@ function bind (vm, key, source) {
   var binder = new BinderKlass(vm, key, source, readyCallback.bind(vm), cancelCallback.bind(vm));
   binder.init();
   binder.bind();
-  vm.$firebaseBinders[key];
+  vm.$firebaseBinders[key] = binder;
 }
 
 /**
@@ -358,10 +358,10 @@ function ensureRefs (vm) {
 var init = function () {
   var this$1 = this;
 
+  ensureRefs(this);
   var bindings = this.$options.firebase;
   if (typeof bindings === 'function') { bindings = bindings.call(this); }
   if (!bindings) { return }
-  ensureRefs(this);
   for (var key in bindings) {
     bind(this$1, key, bindings[key]);
   }
