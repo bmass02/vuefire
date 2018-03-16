@@ -25,21 +25,21 @@ export class QueryBinder extends BaseBinder {
       results.docChanges.forEach((change) => {
         switch (change.type) {
           case 'added': {
-            this.array.splice(change.newIndex, 0, Helpers.createRecord(change.doc))
+            this.initialValue.splice(change.newIndex, 0, Helpers.createRecord(change.doc))
             break
           }
           case 'modified': {
             const record = Helpers.createRecord(change.doc)
             if (change.oldIndex === change.newIndex) {
-              this.array.splice(change.oldIndex, 1, record)
+              this.initialValue.splice(change.oldIndex, 1, record)
             } else {
-              this.array.splice(change.oldIndex, 1)
-              this.array.splice(change.newIndex, 0, record)
+              this.initialValue.splice(change.oldIndex, 1)
+              this.initialValue.splice(change.newIndex, 0, record)
             }
             break
           }
           case 'removed': {
-            this.array.splice(change.oldIndex, 1)
+            this.initialValue.splice(change.oldIndex, 1)
             break
           }
         }

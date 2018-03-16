@@ -122,21 +122,21 @@ var QueryBinder = (function (BaseBinder$$1) {
       results.docChanges.forEach(function (change) {
         switch (change.type) {
           case 'added': {
-            this$1.array.splice(change.newIndex, 0, createRecord(change.doc));
+            this$1.initialValue.splice(change.newIndex, 0, createRecord(change.doc));
             break
           }
           case 'modified': {
             var record = createRecord(change.doc);
             if (change.oldIndex === change.newIndex) {
-              this$1.array.splice(change.oldIndex, 1, record);
+              this$1.initialValue.splice(change.oldIndex, 1, record);
             } else {
-              this$1.array.splice(change.oldIndex, 1);
-              this$1.array.splice(change.newIndex, 0, record);
+              this$1.initialValue.splice(change.oldIndex, 1);
+              this$1.initialValue.splice(change.newIndex, 0, record);
             }
             break
           }
           case 'removed': {
-            this$1.array.splice(change.oldIndex, 1);
+            this$1.initialValue.splice(change.oldIndex, 1);
             break
           }
         }
