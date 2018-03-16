@@ -1,5 +1,5 @@
-var BaseBinder = require('./base').BaseBinder
-var Helpers = require('../helpers/firestore')
+import { BaseBinder } from './base'
+import * as Helpers from '../helpers/rtdb'
 
 export class DocumentBinder extends BaseBinder {
   constructor (vm, key, source, onReady, onError) {
