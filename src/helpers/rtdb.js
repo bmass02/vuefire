@@ -6,7 +6,7 @@ export * from './common'
  * @param {FirebaseSnapshot} snapshot
  * @return {string|null}
  */
-function _getKey (snapshot) {
+export function _getKey (snapshot) {
   return typeof snapshot.key === 'function'
     ? snapshot.key()
     : snapshot.key

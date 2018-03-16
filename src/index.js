@@ -1,5 +1,5 @@
-import * as Binders from './binders'
-import * as Helpers from './helpers'
+import * as Binders from './binders/index.js'
+import * as Helpers from './helpers/rtdb.js'
 var Vue // late binding
 
 Binders.BaseBinder.prototype.defineReactive = function (vm, key, val) {
@@ -31,6 +31,8 @@ function bind (vm, key, source) {
   if (!Helpers.isObject(source)) {
     throw new Error('VueFire: invalid Firebase binding source.')
   }
+  cancelCallback = cancelCallback || (() => {})
+  readyCallback = readyCallback || (() => {})
   var BinderKlass = null
   // bind based on initial value type
   if (asObject) {

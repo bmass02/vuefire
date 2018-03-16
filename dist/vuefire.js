@@ -9,420 +9,420 @@
 	(factory((global.Vuefire = {})));
 }(this, (function (exports) { 'use strict';
 
-function createSnapshot (doc) {
-  // defaults everything to false, so no need to set
-  return Object.defineProperty(doc.data(), 'id', {
-    value: doc.id
-  })
-}
+var BaseBinder = function BaseBinder (vm, key, source, onReady, onError) {
+  this.vm = vm;
+  this.key = key;
+  this.source = source;
+  this.onReady = onReady;
+  this.onError = onError;
+  this.initialValue = null;
+};
 
-function isObject (o) {
-  return o && typeof o === 'object'
-}
+BaseBinder.prototype.bind = function bind () {
+  throw new Error('[bind] must be implemented in children.')
+};
 
-function extractRefs (doc, oldDoc, path, result) {
-  if ( path === void 0 ) path = '';
-  if ( result === void 0 ) result = [{}, {}];
+BaseBinder.prototype._init = function _init (value) {
+  this.defineReactive(this.vm, this.key, value);
+};
 
-  // must be set here because walkGet can return null or undefined
-  oldDoc = oldDoc || {};
-  var idDescriptor = Object.getOwnPropertyDescriptor(doc, 'id');
-  if (idDescriptor && !idDescriptor.enumerable) {
-    Object.defineProperty(result[0], 'id', idDescriptor);
+BaseBinder.prototype.unbind = function unbind () {
+  if (this.off) {
+    this.off();
   }
-  return Object.keys(doc).reduce(function (tot, key) {
-    var ref = doc[key];
-    // if it's a ref
-    if (ref && typeof ref.isEqual === 'function') {
-      tot[0][key] = oldDoc[key] || ref.path;
-      // TODO handle subpathes?
-      tot[1][path + key] = ref;
-    } else if (Array.isArray(ref)) {
-      // TODO handle array
-      tot[0][key] = Array(ref.length).fill(null);
-      extractRefs(ref, oldDoc[key], path + key + '.', [tot[0][key], tot[1]]);
-    } else if (ref instanceof Date) {
-      tot[0][key] = ref;
-    } else if (isObject(ref)) {
-      tot[0][key] = {};
-      extractRefs(ref, oldDoc[key], path + key + '.', [tot[0][key], tot[1]]);
-    } else {
-      tot[0][key] = ref;
-    }
-    return tot
-  }, result)
+  this.vm[this.key] = this.initialValue;
+};
+
+function callOnceFn (fn) {
+  if (typeof fn !== 'function') { throw new Error('Must pass a function.') }
+
+  var callOnce = function () {
+    var params = [], len = arguments.length;
+    while ( len-- ) params[ len ] = arguments[ len ];
+
+    fn.apply(void 0, params);
+    callOnce = function () {};
+  };
+  return callOnce
 }
 
-function callOnceWithArg (fn, argFn) {
-  var called;
-  return function () {
-    if (!called) {
-      called = true;
-      return fn(argFn())
-    }
+function createRecord (snapshot) {
+  var record = snapshot.exists ? snapshot.data() : {};
+  record['.id'] = snapshot.id;
+  return record
+}
+
+function stringifyPath (ref) {
+  var segments = [];
+  while (ref) {
+    segments.unshift(ref.id);
+    ref = ref.parent;
   }
+  var dbSettings = ref.firestore._databaseId;
+  segments.unshift(dbSettings.database);
+  segments.unshift(dbSettings.projectId);
+  return ref.firebase.segments.join('/')
 }
 
-function walkGet (obj, path) {
-  return path.split('.').reduce(function (target, key) { return target[key]; }, obj)
-}
-
-function walkSet (obj, path, value) {
-  // path can be a number
-  var keys = ('' + path).split('.');
-  var key = keys.pop();
-  var target = keys.reduce(function (target, key) { return target[key]; }, obj);
-  // global isFinite is different from Number.isFinite
-  // it converts values to numbers
-  if (isFinite(key)) { target.splice(key, 1, value); }
-  else { target[key] = value; }
-}
-
-function unsubscribeAll (subs) {
-  for (var sub in subs) {
-    subs[sub].unsub();
-  }
-}
-
-// NOTE not convinced by the naming of subscribeToRefs and subscribeToDocument
-// first one is calling the other on every ref and subscribeToDocument may call
-// updateDataFromDocumentSnapshot which may call subscribeToRefs as well
-function subscribeToRefs (ref, options) {
-  var subs = ref.subs;
-  var refs = ref.refs;
-  var target = ref.target;
-  var path = ref.path;
-  var data = ref.data;
-  var depth = ref.depth;
-  var resolve = ref.resolve;
-
-  var refKeys = Object.keys(refs);
-  var missingKeys = Object.keys(subs).filter(function (refKey) { return refKeys.indexOf(refKey) < 0; });
-  // unbind keys that are no longer there
-  missingKeys.forEach(function (refKey) {
-    subs[refKey].unsub();
-    delete subs[refKey];
-  });
-  if (!refKeys.length || ++depth > options.maxRefDepth) { return resolve(path) }
-
-  var resolvedCount = 0;
-  var totalToResolve = refKeys.length;
-  var validResolves = Object.create(null);
-  function deepResolve (key) {
-    if (key in validResolves) {
-      if (++resolvedCount >= totalToResolve) { resolve(path); }
+var DocumentBinder = (function (BaseBinder$$1) {
+  function DocumentBinder (vm, key, source, onReady, onError) {
+    BaseBinder$$1.apply(this, arguments);
+    if (!(this.source.firestore && this.source.collection)) {
+      throw new Error('Not a valid Firestore DocumentReference to bind.')
     }
+    this.initialValue = {};
   }
 
-  refKeys.forEach(function (refKey) {
-    var sub = subs[refKey];
-    var ref = refs[refKey];
-    var docPath = path + "." + refKey;
+  if ( BaseBinder$$1 ) DocumentBinder.__proto__ = BaseBinder$$1;
+  DocumentBinder.prototype = Object.create( BaseBinder$$1 && BaseBinder$$1.prototype );
+  DocumentBinder.prototype.constructor = DocumentBinder;
 
-    validResolves[docPath] = true;
-
-    // unsubscribe if bound to a different ref
-    if (sub) {
-      if (sub.path !== ref.path) { sub.unsub(); }
-      // if has already be bound and as we always walk the objects, it will work
-      else { return }
-    }
-
-    subs[refKey] = {
-      unsub: subscribeToDocument({
-        ref: ref,
-        target: target,
-        path: docPath,
-        depth: depth,
-        resolve: deepResolve.bind(null, docPath)
-      }, options),
-      path: ref.path
-    };
-  });
-}
-
-function bindCollection (ref, options) {
-  var vm = ref.vm;
-  var key = ref.key;
-  var collection = ref.collection;
-  var resolve = ref.resolve;
-  var reject = ref.reject;
-
-  // TODO support pathes? nested.obj.list (walkSet)
-  var array = vm[key] = [];
-  var originalResolve = resolve;
-  var isResolved;
-
-  // contain ref subscriptions of objects
-  // arraySubs is a mirror of array
-  var arraySubs = [];
-
-  var change = {
-    added: function (ref) {
-      var newIndex = ref.newIndex;
-      var doc = ref.doc;
-
-      arraySubs.splice(newIndex, 0, Object.create(null));
-      var subs = arraySubs[newIndex];
-      var snapshot = createSnapshot(doc);
-      var ref$1 = extractRefs(snapshot);
-      var data = ref$1[0];
-      var refs = ref$1[1];
-      array.splice(newIndex, 0, data);
-      subscribeToRefs({
-        data: data,
-        refs: refs,
-        subs: subs,
-        target: array,
-        path: newIndex,
-        depth: 0,
-        resolve: resolve.bind(null, doc)
-      }, options);
-    },
-    modified: function (ref) {
-      var oldIndex = ref.oldIndex;
-      var newIndex = ref.newIndex;
-      var doc = ref.doc;
-
-      var subs = arraySubs.splice(oldIndex, 1)[0];
-      arraySubs.splice(newIndex, 0, subs);
-      var oldData = array.splice(oldIndex, 1)[0];
-      var snapshot = createSnapshot(doc);
-      var ref$1 = extractRefs(snapshot, oldData);
-      var data = ref$1[0];
-      var refs = ref$1[1];
-      array.splice(newIndex, 0, data);
-      subscribeToRefs({
-        data: data,
-        refs: refs,
-        subs: subs,
-        target: array,
-        path: newIndex,
-        depth: 0,
-        resolve: resolve
-      }, options);
-    },
-    removed: function (ref) {
-      var oldIndex = ref.oldIndex;
-
-      array.splice(oldIndex, 1);
-      unsubscribeAll(arraySubs.splice(oldIndex, 1)[0]);
-    }
+  DocumentBinder.prototype.path = function path () {
+    return stringifyPath(this.source)
   };
 
-  var unbind = collection.onSnapshot(function (ref) {
-    var docChanges = ref.docChanges;
+  DocumentBinder.prototype.init = function init () {
+    this.onReadyOnce = callOnceFn(this.onReady);
+    this._init(this.initialValue);
+  };
 
-    // console.log('pending', metadata.hasPendingWrites)
-    // docs.forEach(d => console.log('doc', d, '\n', 'data', d.data()))
-    // NOTE this will only be triggered once and it will be with all the documents
-    // from the query appearing as added
-    // (https://firebase.google.com/docs/firestore/query-data/listen#view_changes_between_snapshots)
-    if (!isResolved && docChanges.length) {
-      // isResolved is only meant to make sure we do the check only once
-      isResolved = true;
-      var count = 0;
-      var expectedItems = docChanges.length;
-      var validDocs = docChanges.reduce(function (dict, ref) {
-        var doc = ref.doc;
+  DocumentBinder.prototype.bind = function bind () {
+    var off = this.source.onSnapshot(function (snapshot) {
+      this.vm[this.key] = createRecord(snapshot);
+      this.onReadyOnce();
+    }, this.onError);
 
-        dict[doc.id] = false;
-        return dict
-      }, Object.create(null));
-      resolve = function (ref) {
-        var id = ref.id;
+    this.off = callOnceFn(off);
+  };
 
-        if (id in validDocs) {
-          if (++count >= expectedItems) {
-            originalResolve(vm[key]);
-            // reset resolve to noop
-            resolve = function (_) {};
+  return DocumentBinder;
+}(BaseBinder));
+
+var QueryBinder = (function (BaseBinder$$1) {
+  function QueryBinder (vm, key, source, onReady, onError) {
+    BaseBinder$$1.apply(this, arguments);
+    if (!(this.source.firestore && this.source.where)) {
+      throw new Error('Not a valid Firestore CollectionReference or Query to bind.')
+    }
+    this.initialValue = [];
+  }
+
+  if ( BaseBinder$$1 ) QueryBinder.__proto__ = BaseBinder$$1;
+  QueryBinder.prototype = Object.create( BaseBinder$$1 && BaseBinder$$1.prototype );
+  QueryBinder.prototype.constructor = QueryBinder;
+
+  QueryBinder.prototype.path = function path () {
+    return stringifyPath(this.source)
+  };
+
+  QueryBinder.prototype.init = function init () {
+    this.onReadyOnce = callOnceFn(this.onReady);
+    this._init(this.initialValue);
+  };
+
+  QueryBinder.prototype.bind = function bind () {
+    this.unbind();
+    var off = this.source.onSnapshot(function (results) {
+      var this$1 = this;
+
+      results.docChanges.forEach(function (change) {
+        switch (change.type) {
+          case 'added': {
+            this$1.array.splice(change.newIndex, 0, createRecord(change.doc));
+            break
+          }
+          case 'modified': {
+            var record = createRecord(change.doc);
+            if (change.oldIndex === change.newIndex) {
+              this$1.array.splice(change.oldIndex, 1, record);
+            } else {
+              this$1.array.splice(change.oldIndex, 1);
+              this$1.array.splice(change.newIndex, 0, record);
+            }
+            break
+          }
+          case 'removed': {
+            this$1.array.splice(change.oldIndex, 1);
+            break
           }
         }
-      };
-    }
-    docChanges.forEach(function (c) {
-      change[c.type](c);
-    });
-
-    // resolves when array is empty
-    if (!docChanges.length) { resolve(); }
-  }, reject);
-
-  return function () {
-    unbind();
-    arraySubs.forEach(unsubscribeAll);
-  }
-}
-
-function updateDataFromDocumentSnapshot (ref, options) {
-  var snapshot = ref.snapshot;
-  var target = ref.target;
-  var path = ref.path;
-  var subs = ref.subs;
-  var depth = ref.depth; if ( depth === void 0 ) depth = 0;
-  var resolve = ref.resolve;
-
-  var ref$1 = extractRefs(snapshot, walkGet(target, path));
-  var data = ref$1[0];
-  var refs = ref$1[1];
-  walkSet(target, path, data);
-  subscribeToRefs({
-    data: data,
-    subs: subs,
-    refs: refs,
-    target: target,
-    path: path,
-    depth: depth,
-    resolve: resolve
-  }, options);
-}
-
-function subscribeToDocument (ref$1, options) {
-  var ref = ref$1.ref;
-  var target = ref$1.target;
-  var path = ref$1.path;
-  var depth = ref$1.depth;
-  var resolve = ref$1.resolve;
-
-  var subs = Object.create(null);
-  var unbind = ref.onSnapshot(function (doc) {
-    if (doc.exists) {
-      updateDataFromDocumentSnapshot({
-        snapshot: createSnapshot(doc),
-        target: target,
-        path: path,
-        subs: subs,
-        depth: depth,
-        resolve: resolve
-      }, options);
-    } else {
-      walkSet(target, path, null);
-      resolve(path);
-    }
-  });
-
-  return function () {
-    unbind();
-    unsubscribeAll(subs);
-  }
-}
-
-function bindDocument (ref, options) {
-  var vm = ref.vm;
-  var key = ref.key;
-  var document = ref.document;
-  var resolve = ref.resolve;
-  var reject = ref.reject;
-
-  // TODO warning check if key exists?
-  // const boundRefs = Object.create(null)
-
-  var subs = Object.create(null);
-  // bind here the function so it can be resolved anywhere
-  // this is specially useful for refs
-  // TODO use walkGet?
-  resolve = callOnceWithArg(resolve, function () { return vm[key]; });
-  var unbind = document.onSnapshot(function (doc) {
-    if (doc.exists) {
-      updateDataFromDocumentSnapshot({
-        snapshot: createSnapshot(doc),
-        target: vm,
-        path: key,
-        subs: subs,
-        resolve: resolve
-      }, options);
-    } else {
-      resolve();
-    }
-  }, reject);
-
-  return function () {
-    unbind();
-    unsubscribeAll(subs);
-  }
-}
-
-function bind (ref$1, options) {
-  var vm = ref$1.vm;
-  var key = ref$1.key;
-  var ref = ref$1.ref;
-  if ( options === void 0 ) options = { maxRefDepth: 2 };
-
-  return new Promise(function (resolve, reject) {
-    var unbind;
-    if (ref.where) {
-      unbind = bindCollection({
-        vm: vm,
-        key: key,
-        collection: ref,
-        resolve: resolve,
-        reject: reject
-      }, options);
-    } else {
-      unbind = bindDocument({
-        vm: vm,
-        key: key,
-        document: ref,
-        resolve: resolve,
-        reject: reject
-      }, options);
-    }
-    vm._firestoreUnbinds[key] = unbind;
-  })
-}
-
-function install (Vue) {
-  var strategies = Vue.config.optionMergeStrategies;
-  strategies.firestore = strategies.provide;
-
-  Vue.mixin({
-    created: function created () {
-      var this$1 = this;
-
-      var ref = this.$options;
-      var firestore = ref.firestore;
-      this._firestoreUnbinds = Object.create(null);
-      this.$firestoreRefs = Object.create(null);
-      var refs = typeof firestore === 'function'
-        ? firestore.call(this)
-        : firestore;
-      if (!refs) { return }
-      Object.keys(refs).forEach(function (key) {
-        this$1.$bind(key, refs[key]);
       });
-    },
+      this.onReadyOnce();
+    }, this.onError);
 
-    beforeDestroy: function beforeDestroy () {
-      var this$1 = this;
+    this.off = callOnceFn(off);
+  };
 
-      for (var subKey in this$1._firestoreUnbinds) {
-        this$1._firestoreUnbinds[subKey]();
+  return QueryBinder;
+}(BaseBinder));
+
+/**
+ * Returns the key of a Firebase snapshot across SDK versions.
+ *
+ * @param {FirebaseSnapshot} snapshot
+ * @return {string|null}
+ */
+function _getKey (snapshot) {
+  return typeof snapshot.key === 'function'
+    ? snapshot.key()
+    : snapshot.key
+}
+
+/**
+ * Check if a value is an object.
+ *
+ * @param {*} val
+ * @return {boolean}
+ */
+function isObject (val) {
+  return Object.prototype.toString.call(val) === '[object Object]'
+}
+
+function indexForKey (array, key) {
+  for (var i = 0; i < array.length; i++) {
+    if (array[i]['.key'] === key) {
+      return i
+    }
+  }
+  /* istanbul ignore next */
+  return -1
+}
+
+
+
+function createRecord$1 (snapshot) {
+  var value = snapshot.val();
+  var res = isObject(value)
+    ? value
+    : { '.value': value };
+  res['.key'] = _getKey(snapshot);
+  return res
+}
+
+var ArrayBinder = (function (BaseBinder$$1) {
+  function ArrayBinder (vm, key, source, onReady, onError) {
+    BaseBinder$$1.apply(this, arguments);
+    if (typeof this.source.on !== 'function') {
+      throw new Error('Not a valid source to bind.')
+    }
+    this.initialValue = [];
+  }
+
+  if ( BaseBinder$$1 ) ArrayBinder.__proto__ = BaseBinder$$1;
+  ArrayBinder.prototype = Object.create( BaseBinder$$1 && BaseBinder$$1.prototype );
+  ArrayBinder.prototype.constructor = ArrayBinder;
+
+  ArrayBinder.prototype.init = function init () {
+    this._init(this.initialValue);
+  };
+
+  ArrayBinder.prototype.bind = function bind () {
+    this.unbind();
+    var onAdd = this.source.on('child_added', function (snapshot, prevKey) {
+      var index = prevKey ? indexForKey(this.initialValue, prevKey) + 1 : 0;
+      this.initialValue.splice(index, 0, createRecord$1(snapshot));
+    }, this.onError);
+
+    var onRemove = this.source.on('child_removed', function (snapshot) {
+      var index = indexForKey(this.initialValue, _getKey(snapshot));
+      this.initialValue.splice(index, 1);
+    }, this.onError);
+
+    var onChange = this.source.on('child_changed', function (snapshot) {
+      var index = indexForKey(this.initialValue, _getKey(snapshot));
+      this.initialValue.splice(index, 1, createRecord$1(snapshot));
+    }, this.onError);
+
+    var onMove = this.source.on('child_moved', function (snapshot, prevKey) {
+      var index = indexForKey(this.initialValue, _getKey(snapshot));
+      var record = this.initialValue.splice(index, 1)[0];
+      var newIndex = prevKey ? indexForKey(this.initialValue, prevKey) + 1 : 0;
+      this.initialValue.splice(newIndex, 0, record);
+    }, this.onError);
+
+    this.off = callOnceFn(function () {
+      this.source.off('child_added', onAdd);
+      this.source.off('child_removed', onRemove);
+      this.source.off('child_changed', onChange);
+      this.source.off('child_moved', onMove);
+    });
+    this.source.once('value', this.onReady.bind(this.vm));
+  };
+
+  return ArrayBinder;
+}(BaseBinder));
+
+var ObjectBinder = (function (BaseBinder$$1) {
+  function ObjectBinder (vm, key, source, onReady, onError) {
+    BaseBinder$$1.apply(this, arguments);
+    if (typeof this.source.on !== 'function') {
+      throw new Error('Not a valid source to bind.')
+    }
+    this.initialValue = {};
+  }
+
+  if ( BaseBinder$$1 ) ObjectBinder.__proto__ = BaseBinder$$1;
+  ObjectBinder.prototype = Object.create( BaseBinder$$1 && BaseBinder$$1.prototype );
+  ObjectBinder.prototype.constructor = ObjectBinder;
+
+  ObjectBinder.prototype.init = function init () {
+    this._init(this.initialValue);
+  };
+
+  ObjectBinder.prototype.bind = function bind () {
+    this.unbind();
+    var watcher = this.source.on('value', function (snapshot) {
+      this.vm[this.key] = createRecord$1(snapshot);
+    }, this.onError);
+    this.source.once('value', this.onReady);
+
+    this.off = callOnceFn(function () {
+      this.source.off('value', watcher);
+    });
+  };
+
+  return ObjectBinder;
+}(BaseBinder));
+
+var Vue; // late binding
+
+BaseBinder.prototype.defineReactive = function (vm, key, val) {
+  if (key in vm) {
+    vm[key] = val;
+  } else {
+    Vue.util.defineReactive(vm, key, val);
+  }
+};
+
+/**
+ * Bind a firebase data source to a key on a vm.
+ *
+ * @param {Vue} vm
+ * @param {string} key
+ * @param {object} source
+ */
+function bind (vm, key, source) {
+  var asObject = false;
+  var cancelCallback = null;
+  var readyCallback = null;
+  // check { source, asArray, cancelCallback } syntax
+  if (isObject(source) && source.hasOwnProperty('source')) {
+    asObject = source.asObject;
+    cancelCallback = source.cancelCallback;
+    readyCallback = source.readyCallback;
+    source = source.source;
+  }
+  if (!isObject(source)) {
+    throw new Error('VueFire: invalid Firebase binding source.')
+  }
+  cancelCallback = cancelCallback || (function () {});
+  readyCallback = readyCallback || (function () {});
+  var BinderKlass = null;
+  // bind based on initial value type
+  if (asObject) {
+    BinderKlass = source.firestore ? DocumentBinder : ObjectBinder;
+  } else {
+    BinderKlass = source.firestore ? QueryBinder : ArrayBinder;
+  }
+
+  var binder = new BinderKlass(vm, key, source, readyCallback.bind(vm), cancelCallback.bind(vm));
+  binder.init();
+  binder.bind();
+  vm.$firebaseBinders[key];
+}
+
+/**
+ * Unbind a firebase-bound key from a vm.
+ *
+ * @param {Vue} vm
+ * @param {string} key
+ */
+function unbind (vm, key) {
+  var binder = vm.$firebaseBinders[key];
+  if (binder) {
+    binder.unbind();
+  }
+}
+
+/**
+ * Ensure the related bookkeeping variables on an instance.
+ *
+ * @param {Vue} vm
+ */
+function ensureRefs (vm) {
+  if (!vm.$firebaseBinders) {
+    vm.$firebaseBinders = Object.create(null);
+  }
+}
+
+var init = function () {
+  var this$1 = this;
+
+  var bindings = this.$options.firebase;
+  if (typeof bindings === 'function') { bindings = bindings.call(this); }
+  if (!bindings) { return }
+  ensureRefs(this);
+  for (var key in bindings) {
+    bind(this$1, key, bindings[key]);
+  }
+};
+
+var VueFireMixin = {
+  created: init, // 1.x and 2.x
+  beforeDestroy: function () {
+    var this$1 = this;
+
+    if (!this.$firebaseBinders) { return }
+    for (var key in this$1.$firebaseBinders) {
+      if (this$1.$firebaseBinders[key]) {
+        this$1.$unbind(key);
       }
-      this._firestoreUnbinds = null;
-      this.$firestoreRefs = null;
     }
-  });
+    this.$firebaseBinders = null;
+  }
+};
 
-  // TODO test if $bind exist and warns
-  Vue.prototype.$bind = function (key, ref, options) {
-    if (this._firestoreUnbinds[key]) {
-      this.$unbind(key);
-    }
-    var promise = bind({
-      vm: this,
-      key: key,
-      ref: ref
-    }, options);
-    this.$firestoreRefs[key] = ref;
-    return promise
+/**
+ * Install function passed to Vue.use() in manual installation.
+ *
+ * @param {function} _Vue
+ */
+function install (_Vue) {
+  Vue = _Vue;
+  Vue.mixin(VueFireMixin);
+
+  var mergeStrats = Vue.config.optionMergeStrategies;
+  mergeStrats.firebase = mergeStrats.provide;
+
+  // extend instance methods
+  Vue.prototype.$bindAsObject = function (key, source, cancelCallback, readyCallback) {
+    ensureRefs(this);
+    bind(this, key, {
+      source: source,
+      asObject: true,
+      cancelCallback: cancelCallback,
+      readyCallback: readyCallback
+    });
+  };
+
+  Vue.prototype.$bindAsArray = function (key, source, cancelCallback, readyCallback) {
+    ensureRefs(this);
+    bind(this, key, {
+      source: source,
+      cancelCallback: cancelCallback,
+      readyCallback: readyCallback
+    });
   };
 
   Vue.prototype.$unbind = function (key) {
-    this._firestoreUnbinds[key]();
-    delete this._firestoreUnbinds[key];
-    delete this.$firestoreRefs[key];
+    unbind(this, key);
   };
+}
+
+// auto install
+/* istanbul ignore if */
+if (typeof window !== 'undefined' && window.Vue) {
+  install(window.Vue);
 }
 
 exports['default'] = install;

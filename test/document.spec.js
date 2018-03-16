@@ -36,7 +36,7 @@ test('updates a document', async () => {
 test('adds non-enumerable id', async () => {
   document = collection.doc('some-id')
   await document.update({ foo: 'foo' })
-  await vm.$bind('item', document)
+  await vm.$bindAsObject('item', document)
   expect(Object.getOwnPropertyDescriptor(vm.item, 'id')).toEqual({
     configurable: false,
     enumerable: false,

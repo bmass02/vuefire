@@ -97,7 +97,7 @@ export class DocumentReference extends callbacksAndErrors {
   }
 
   async set (data) {
-    this.data = { ...data }
+    this.data = Object.create(data)
     this.exists = true
     this._callCallbacks(new DocumentSnapshot(null, this.id, this.data, true))
     return this.collection._modify(this.id, this.data, this)

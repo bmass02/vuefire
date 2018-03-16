@@ -50,7 +50,7 @@ beforeEach(async () => {
 test('binds refs on documents', async () => {
   // create an empty doc and update using the ref instead of plain data
   await item.update({ ref: c })
-  await vm.$bind('item', item)
+  await vm.$bindAsObject('item', item)
 
   expect(vm.item).toEqual({
     ref: { isC: true }
@@ -63,7 +63,7 @@ test('binds refs nested in documents (objects)', async () => {
       ref: c
     }
   })
-  await vm.$bind('item', item)
+  await vm.$bindAsObject('item', item)
 
   expect(vm.item).toEqual({
     obj: {
@@ -80,7 +80,7 @@ test('binds refs deeply nested in documents (objects)', async () => {
       }
     }
   })
-  await vm.$bind('item', item)
+  await vm.$bindAsObject('item', item)
 
   expect(vm.item).toEqual({
     obj: {
@@ -169,7 +169,7 @@ test('does not rebind if it is the same ref', async () => {
 test('resolves the promise when refs are resolved in a document', async () => {
   await item.update({ ref: a })
 
-  await vm.$bind('item', item)
+  await vm.$bindAsObject('item', item)
   expect(vm.item).toEqual({ ref: { isA: true }})
 })
 
@@ -177,7 +177,7 @@ test('resolves the promise when nested refs are resolved in a document', async (
   await item.update({ ref: a })
   await d.update({ ref: item })
 
-  await vm.$bind('item', d)
+  await vm.$bindAsObject('item', d)
   expect(vm.item).toEqual({ ref: { ref: { isA: true }}})
 })
 
@@ -185,13 +185,13 @@ test('resolves the promise when nested non-existant refs are resolved in a docum
   await item.update({ ref: empty })
   await d.update({ ref: item })
 
-  await vm.$bind('item', d)
+  await vm.$bindAsObject('item', d)
   expect(vm.item).toEqual({ ref: { ref: null }})
 })
 
 test('resolves the promise when the document does not exist', async () => {
   expect(vm.item).toEqual(null)
-  await vm.$bind('item', empty)
+  await vm.$bindAsObject('item', empty)
   expect(vm.item).toBe(null)
 })
 
@@ -199,7 +199,7 @@ test('unbinds all refs when the document is unbound', async () => {
   const cSpy = spyUnbind(c)
   const dSpy = spyUnbind(d)
   // rebind to use the spies
-  await vm.$bind('d', d)
+  await vm.$bindAsObject('d', d)
   expect(vm.d).toEqual({
     ref: {
       isC: true
@@ -222,7 +222,7 @@ test('unbinds nested refs when the document is unbound', async () => {
   await b.update({ ref: a })
   await item.update({ ref: b })
 
-  await vm.$bind('item', item)
+  await vm.$bindAsObject('item', item)
   vm.$unbind('item')
 
   expect(dSpy).toHaveBeenCalledTimes(1)
@@ -241,7 +241,7 @@ test('unbinds multiple refs when the document is unbound', async () => {
 
   await item.update({ c, a })
 
-  await vm.$bind('item', item)
+  await vm.$bindAsObject('item', item)
   vm.$unbind('item')
 
   expect(dSpy).toHaveBeenCalledTimes(1)
@@ -258,7 +258,7 @@ test('unbinds when a ref is replaced', async () => {
   const cSpy = spyUnbind(c)
   const dSpy = spyUnbind(d)
 
-  await vm.$bind('d', d)
+  await vm.$bindAsObject('d', d)
   expect(vm.d).toEqual({
     ref: {
       isC: true
@@ -297,7 +297,7 @@ test('unbinds removed properties', async () => {
   expect(unbindSpy).toHaveBeenCalledTimes(0)
   expect(callbackSpy).toHaveBeenCalledTimes(0)
   expect(onSnapshotSpy).toHaveBeenCalledTimes(0)
-  await vm.$bind('item', item)
+  await vm.$bindAsObject('item', item)
 
   expect(unbindSpy).toHaveBeenCalledTimes(0)
   expect(callbackSpy).toHaveBeenCalledTimes(1)
@@ -325,7 +325,7 @@ test('binds refs on arrays', async () => {
     arr: [a, b, a]
   })
 
-  await vm.$bind('item', item)
+  await vm.$bindAsObject('item', item)
 
   expect(vm.item).toEqual({
     arr: [
@@ -338,7 +338,7 @@ test('binds refs on arrays', async () => {
 
 test('properly updates a documen with refs', async () => {
   await item.update({ a })
-  await vm.$bind('item', item)
+  await vm.$bindAsObject('item', item)
 
   expect(vm.item).toEqual({
     a: { isA: true }
@@ -360,7 +360,7 @@ test('updates values in arrays', async () => {
     arr: [a, b]
   })
 
-  await vm.$bind('item', item)
+  await vm.$bindAsObject('item', item)
 
   expect(vm.item).toEqual({
     arr: [{ isA: true }, null]
@@ -389,7 +389,7 @@ test('correctly updates arrays', async () => {
     arr: [a, b]
   })
 
-  await vm.$bind('item', item)
+  await vm.$bindAsObject('item', item)
 
   const spy = jest.fn()
   vm.$watch('item.arr', spy)
@@ -417,14 +417,14 @@ test('respects provided maxRefDepth', async () => {
   await d.set({ isD: true })
   await c.set({ d })
 
-  await vm.$bind('item', item, { maxRefDepth: 1 })
+  await vm.$bindAsObject('item', item, { maxRefDepth: 1 })
   expect(vm.item).toEqual({
     a: {
       b: b.path
     }
   })
 
-  await vm.$bind('item', item, { maxRefDepth: 3 })
+  await vm.$bindAsObject('item', item, { maxRefDepth: 3 })
   expect(vm.item).toEqual({
     a: {
       b: {
@@ -438,7 +438,7 @@ test('respects provided maxRefDepth', async () => {
 
 test('does not fail with cyclic refs', async () => {
   await item.set({ item })
-  await vm.$bind('item', item, { maxRefDepth: 5 })
+  await vm.$bindAsObject('item', item, { maxRefDepth: 5 })
 
   expect(vm.item).toEqual({
     // it's easy to see we stop at 5 and we have 5 brackets
