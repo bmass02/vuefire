@@ -81,9 +81,11 @@ var DocumentBinder = (function (BaseBinder$$1) {
   };
 
   DocumentBinder.prototype.bind = function bind () {
+    var this$1 = this;
+
     var off = this.source.onSnapshot(function (snapshot) {
-      this.vm[this.key] = createRecord(snapshot);
-      this.onReadyOnce();
+      this$1.vm[this$1.key] = createRecord(snapshot);
+      this$1.onReadyOnce();
     }, this.onError);
 
     this.off = callOnceFn(off);
@@ -115,10 +117,10 @@ var QueryBinder = (function (BaseBinder$$1) {
   };
 
   QueryBinder.prototype.bind = function bind () {
+    var this$1 = this;
+
     this.unbind();
     var off = this.source.onSnapshot(function (results) {
-      var this$1 = this;
-
       results.docChanges.forEach(function (change) {
         switch (change.type) {
           case 'added': {
@@ -141,7 +143,7 @@ var QueryBinder = (function (BaseBinder$$1) {
           }
         }
       });
-      this.onReadyOnce();
+      this$1.onReadyOnce();
     }, this.onError);
 
     this.off = callOnceFn(off);
@@ -211,34 +213,36 @@ var ArrayBinder = (function (BaseBinder$$1) {
   };
 
   ArrayBinder.prototype.bind = function bind () {
+    var this$1 = this;
+
     this.unbind();
     var onAdd = this.source.on('child_added', function (snapshot, prevKey) {
-      var index = prevKey ? indexForKey(this.initialValue, prevKey) + 1 : 0;
-      this.initialValue.splice(index, 0, createRecord$1(snapshot));
+      var index = prevKey ? indexForKey(this$1.initialValue, prevKey) + 1 : 0;
+      this$1.initialValue.splice(index, 0, createRecord$1(snapshot));
     }, this.onError);
 
     var onRemove = this.source.on('child_removed', function (snapshot) {
-      var index = indexForKey(this.initialValue, _getKey(snapshot));
-      this.initialValue.splice(index, 1);
+      var index = indexForKey(this$1.initialValue, _getKey(snapshot));
+      this$1.initialValue.splice(index, 1);
     }, this.onError);
 
     var onChange = this.source.on('child_changed', function (snapshot) {
-      var index = indexForKey(this.initialValue, _getKey(snapshot));
-      this.initialValue.splice(index, 1, createRecord$1(snapshot));
+      var index = indexForKey(this$1.initialValue, _getKey(snapshot));
+      this$1.initialValue.splice(index, 1, createRecord$1(snapshot));
     }, this.onError);
 
     var onMove = this.source.on('child_moved', function (snapshot, prevKey) {
-      var index = indexForKey(this.initialValue, _getKey(snapshot));
-      var record = this.initialValue.splice(index, 1)[0];
-      var newIndex = prevKey ? indexForKey(this.initialValue, prevKey) + 1 : 0;
-      this.initialValue.splice(newIndex, 0, record);
+      var index = indexForKey(this$1.initialValue, _getKey(snapshot));
+      var record = this$1.initialValue.splice(index, 1)[0];
+      var newIndex = prevKey ? indexForKey(this$1.initialValue, prevKey) + 1 : 0;
+      this$1.initialValue.splice(newIndex, 0, record);
     }, this.onError);
 
     this.off = callOnceFn(function () {
-      this.source.off('child_added', onAdd);
-      this.source.off('child_removed', onRemove);
-      this.source.off('child_changed', onChange);
-      this.source.off('child_moved', onMove);
+      this$1.source.off('child_added', onAdd);
+      this$1.source.off('child_removed', onRemove);
+      this$1.source.off('child_changed', onChange);
+      this$1.source.off('child_moved', onMove);
     });
     this.source.once('value', this.onReady.bind(this.vm));
   };
@@ -264,14 +268,16 @@ var ObjectBinder = (function (BaseBinder$$1) {
   };
 
   ObjectBinder.prototype.bind = function bind () {
+    var this$1 = this;
+
     this.unbind();
     var watcher = this.source.on('value', function (snapshot) {
-      this.vm[this.key] = createRecord$1(snapshot);
+      this$1.vm[this$1.key] = createRecord$1(snapshot);
     }, this.onError);
     this.source.once('value', this.onReady);
 
     this.off = callOnceFn(function () {
-      this.source.off('value', watcher);
+      this$1.source.off('value', watcher);
     });
   };
 

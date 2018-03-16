@@ -21,7 +21,7 @@ export class QueryBinder extends BaseBinder {
 
   bind () {
     this.unbind()
-    var off = this.source.onSnapshot(function (results) {
+    var off = this.source.onSnapshot((results) => {
       results.docChanges.forEach((change) => {
         switch (change.type) {
           case 'added': {

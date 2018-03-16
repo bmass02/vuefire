@@ -20,7 +20,7 @@ export class DocumentBinder extends BaseBinder {
   }
 
   bind () {
-    var off = this.source.onSnapshot(function (snapshot) {
+    var off = this.source.onSnapshot((snapshot) => {
       this.vm[this.key] = Helpers.createRecord(snapshot)
       this.onReadyOnce()
     }, this.onError)

@@ -16,12 +16,12 @@ export class ObjectBinder extends BaseBinder {
 
   bind () {
     this.unbind()
-    var watcher = this.source.on('value', function (snapshot) {
+    var watcher = this.source.on('value', (snapshot) => {
       this.vm[this.key] = Helpers.createRecord(snapshot)
     }, this.onError)
     this.source.once('value', this.onReady)
 
-    this.off = Helpers.callOnceFn(function () {
+    this.off = Helpers.callOnceFn(() => {
       this.source.off('value', watcher)
     })
   }
