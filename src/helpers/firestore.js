@@ -3,6 +3,7 @@ export * from './common'
 export function createRecord (snapshot) {
   const record = snapshot.exists ? snapshot.data() : {}
   record['.id'] = snapshot.id
+  record['.ref'] = snapshot.ref
   return record
 }
 

@@ -49,6 +49,7 @@ function callOnceFn (fn) {
 function createRecord (snapshot) {
   var record = snapshot.exists ? snapshot.data() : {};
   record['.id'] = snapshot.id;
+  record['.ref'] = snapshot.ref;
   return record
 }
 
@@ -190,7 +191,15 @@ function indexForKey (array, key) {
   return -1
 }
 
+function _getRef (refOrQuery) {
+  if (typeof refOrQuery.ref === 'function') {
+    refOrQuery = refOrQuery.ref();
+  } else if (typeof refOrQuery.ref === 'object') {
+    refOrQuery = refOrQuery.ref;
+  }
 
+  return refOrQuery
+}
 
 function createRecord$1 (snapshot) {
   var value = snapshot.val();
@@ -198,6 +207,7 @@ function createRecord$1 (snapshot) {
     ? value
     : { '.value': value };
   res['.key'] = _getKey(snapshot);
+  res['.ref'] = _getRef(snapshot);
   return res
 }
 

@@ -48,5 +48,6 @@ export function createRecord (snapshot) {
     ? value
     : { '.value': value }
   res['.key'] = _getKey(snapshot)
+  res['.ref'] = _getRef(snapshot)
   return res
 }
