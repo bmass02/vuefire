@@ -235,30 +235,42 @@ var ArrayBinder = (function (BaseBinder$$1) {
     this._init(this.initialValue);
   };
 
+  ArrayBinder.prototype.add = function add (index, record) {
+    this.vm[this.key].splice(index, 0, record);
+  };
+
+  ArrayBinder.prototype.update = function update (index, record) {
+    this.vm[this.key].splice(index, 1, record);
+  };
+
+  ArrayBinder.prototype.delete = function delete$1 (index) {
+    return this.vm[this.key].splice(index, 1)[0]
+  };
+
   ArrayBinder.prototype.bind = function bind () {
     var this$1 = this;
 
     this.unbind();
     var onAdd = this.source.on('child_added', function (snapshot, prevKey) {
       var index = prevKey ? indexForKey(this$1.initialValue, prevKey) + 1 : 0;
-      this$1.initialValue.splice(index, 0, createRecord$1(snapshot));
+      this$1.add(index, createRecord$1(snapshot));
     }, this.onError);
 
     var onRemove = this.source.on('child_removed', function (snapshot) {
       var index = indexForKey(this$1.initialValue, _getKey(snapshot));
-      this$1.initialValue.splice(index, 1);
+      this$1.delete(index);
     }, this.onError);
 
     var onChange = this.source.on('child_changed', function (snapshot) {
       var index = indexForKey(this$1.initialValue, _getKey(snapshot));
-      this$1.initialValue.splice(index, 1, createRecord$1(snapshot));
+      this$1.update(index, createRecord$1(snapshot));
     }, this.onError);
 
     var onMove = this.source.on('child_moved', function (snapshot, prevKey) {
       var index = indexForKey(this$1.initialValue, _getKey(snapshot));
-      var record = this$1.initialValue.splice(index, 1)[0];
+      var record = this$1.delete(index);
       var newIndex = prevKey ? indexForKey(this$1.initialValue, prevKey) + 1 : 0;
-      this$1.initialValue.splice(newIndex, 0, record);
+      this$1.add(newIndex, record);
     }, this.onError);
 
     this.off = callOnceFn(function () {

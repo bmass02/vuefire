@@ -17,7 +17,7 @@ export class ArrayBinder extends BaseBinder {
   add (index, record) {
     this.vm[this.key].splice(index, 0, record)
   }
-  
+
   update (index, record) {
     this.vm[this.key].splice(index, 1, record)
   }

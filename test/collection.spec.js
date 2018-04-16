@@ -49,14 +49,14 @@ test('add properties', async () => {
 })
 
 test('unbinds when the instance is destroyed', async () => {
-  expect(vm._firestoreUnbinds).toBeTruthy()
+  expect(vm.$firebaseBinders).toBeTruthy()
   expect(vm.items).toEqual([])
-  const spy = jest.spyOn(vm._firestoreUnbinds, 'items')
+  const spy = jest.spyOn(vm.$firebaseBinders, 'items')
   expect(() => {
     vm.$destroy()
   }).not.toThrow()
   expect(spy).toHaveBeenCalled()
-  expect(vm._firestoreUnbinds).toBe(null)
+  expect(vm.$firebaseBinders).toBe(null)
   await expect(async () => {
     await collection.add({ text: 'foo' })
     expect(vm.items).toEqual([])
@@ -70,7 +70,7 @@ test('adds non-enumerable id', async () => {
   await b.update({})
   expect(vm.items.length).toBe(2)
   vm.items.forEach((item, i) => {
-    expect(Object.getOwnPropertyDescriptor(item, 'id')).toEqual({
+    expect(Object.getOwnPropertyDescriptor(item, '.id')).toEqual({
       configurable: false,
       enumerable: false,
       writable: false,

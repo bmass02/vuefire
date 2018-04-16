@@ -13,11 +13,7 @@ export class BaseBinder {
   }
 
   _init (value) {
-    if (this.key in this.vm) {
-      this.vm[this.key] = value
-    } else {
-      Vue.util.defineReactive(this.vm, this.key, value)
-    }
+    this.defineReactive(this.vm, this.key, value)
   }
 
   unbind () {
