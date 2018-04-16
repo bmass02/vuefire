@@ -8,6 +8,7 @@
   "browser": "dist/vuefire.js",
   "files": [
     "dist/**",
+    "types/**",
     "LICENSE",
     "README.md"
   ],
