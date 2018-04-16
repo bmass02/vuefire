@@ -1,4 +1,6 @@
 import * as firebase from 'firebase';
+import Vue from 'vue';
+
 declare module 'vue/types/vue' {
   interface Vue {
     $bindAsObject: (key: string, ref: firebase.database.Reference | firebase.firestore.DocumentReference, errorCallback?: (err: any) => any, readyCallback?: () => any) => void
