@@ -73,6 +73,5 @@
       "<rootDir>/test/.*.js",
       "<rootDir>/test/*/*.js"
     ]
-  },
-  "types": "src/index.d.ts"
+  }
 }
