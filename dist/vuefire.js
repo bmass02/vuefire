@@ -123,6 +123,18 @@ var QueryBinder = (function (BaseBinder$$1) {
     this._init(this.initialValue);
   };
 
+  QueryBinder.prototype.add = function add (index, record) {
+    this.vm[this.key].splice(index, 0, record);
+  };
+
+  QueryBinder.prototype.update = function update (index, record) {
+    this.vm[this.key].splice(index, 1, record);
+  };
+
+  QueryBinder.prototype.delete = function delete$1 (index) {
+    this.vm[this.key].splice(index, 1);
+  };
+
   QueryBinder.prototype.bind = function bind () {
     var this$1 = this;
 
@@ -132,20 +144,21 @@ var QueryBinder = (function (BaseBinder$$1) {
         switch (change.type) {
           case 'added': {
             this$1.initialValue.splice(change.newIndex, 0, createRecord(change.doc));
+            this$1.add(change.newIndex, createRecord(change.doc));
             break
           }
           case 'modified': {
             var record = createRecord(change.doc);
             if (change.oldIndex === change.newIndex) {
-              this$1.initialValue.splice(change.oldIndex, 1, record);
+              this$1.update(change.oldIndex, record);
             } else {
-              this$1.initialValue.splice(change.oldIndex, 1);
-              this$1.initialValue.splice(change.newIndex, 0, record);
+              this$1.delete(change.oldIndex);
+              this$1.add(change.newIndex, record);
             }
             break
           }
           case 'removed': {
-            this$1.initialValue.splice(change.oldIndex, 1);
+            this$1.delete(change.oldIndex);
             break
           }
         }

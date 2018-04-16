@@ -19,6 +19,18 @@ export class QueryBinder extends BaseBinder {
     this._init(this.initialValue)
   }
 
+  add (index, record) {
+    this.vm[this.key].splice(index, 0, record)
+  }
+
+  update (index, record) {
+    this.vm[this.key].splice(index, 1, record)
+  }
+
+  delete (index) {
+    this.vm[this.key].splice(index, 1)
+  }
+
   bind () {
     this.unbind()
     var off = this.source.onSnapshot((results) => {
@@ -26,20 +38,21 @@ export class QueryBinder extends BaseBinder {
         switch (change.type) {
           case 'added': {
             this.initialValue.splice(change.newIndex, 0, Helpers.createRecord(change.doc))
+            this.add(change.newIndex, Helpers.createRecord(change.doc))
             break
           }
           case 'modified': {
             const record = Helpers.createRecord(change.doc)
             if (change.oldIndex === change.newIndex) {
-              this.initialValue.splice(change.oldIndex, 1, record)
+              this.update(change.oldIndex, record)
             } else {
-              this.initialValue.splice(change.oldIndex, 1)
-              this.initialValue.splice(change.newIndex, 0, record)
+              this.delete(change.oldIndex)
+              this.add(change.newIndex, record)
             }
             break
           }
           case 'removed': {
-            this.initialValue.splice(change.oldIndex, 1)
+            this.delete(change.oldIndex)
             break
           }
         }
