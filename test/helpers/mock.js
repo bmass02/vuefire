@@ -1,8 +1,9 @@
 export class DocumentSnapshot {
-  constructor (firestore, key, document, exists) {
+  constructor (firestore, key, document, exists, docRef) {
     this._firestore = firestore
     this._key = new Key(key)
     this._document = document
+    this._docRef = docRef
     this.exists = exists
   }
 
@@ -12,6 +13,10 @@ export class DocumentSnapshot {
 
   get id () {
     return this._key.path.lastSegment()
+  }
+
+  get ref () {
+    return this._docRef
   }
 }
 
@@ -64,6 +69,7 @@ export class DocumentReference extends callbacksAndErrors {
     this.data = data
     this.index = index
     this.exists = false
+    this.firestore = true
   }
 
   onSnapshot (cb, onError) {
@@ -71,7 +77,7 @@ export class DocumentReference extends callbacksAndErrors {
       debugger
     }
     setTimeout(() => {
-      cb(new DocumentSnapshot(null, this.id, this.data, this.exists))
+      cb(new DocumentSnapshot(null, this.id, this.data, this.exists, this))
     }, 0)
     return this._addCallbacks(cb, onError)
   }
@@ -92,7 +98,7 @@ export class DocumentReference extends callbacksAndErrors {
   async update (data) {
     Object.assign(this.data, data)
     this.exists = true
-    this._callCallbacks(new DocumentSnapshot(null, this.id, this.data, true))
+    this._callCallbacks(new DocumentSnapshot(null, this.id, this.data, true, this))
     return this.collection._modify(this.id, this.data, this)
   }
 
@@ -109,6 +115,7 @@ class CollectionReference extends callbacksAndErrors {
     super()
     this.data = {}
     this.name = name
+    this.firestore = true
   }
 
   onSnapshot (cb, onError) {
@@ -117,7 +124,12 @@ class CollectionReference extends callbacksAndErrors {
       cb({
         docChanges: Object.keys(this.data).map((id, newIndex) => ({
           type: 'added',
-          doc: new DocumentSnapshot(null, new Key(id), this.data[id].data),
+          doc: new DocumentSnapshot(null, new Key(id), this.data[id].data, new DocumentReference({
+            collection: this,
+            id: new Key(id),
+            data: this.data[id].data,
+            index: newIndex
+          })),
           newIndex,
           oldIndex: -1
         }))

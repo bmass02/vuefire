@@ -56,6 +56,8 @@ export class ArrayBinder extends BaseBinder {
       this.source.off('child_changed', onChange)
       this.source.off('child_moved', onMove)
     })
-    this.source.once('value', this.onReady.bind(this.vm))
+    return this.source.once('value').then(() => {
+      this.onReady()
+    })
   }
 }

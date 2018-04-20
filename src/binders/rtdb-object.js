@@ -19,10 +19,12 @@ export class ObjectBinder extends BaseBinder {
     var watcher = this.source.on('value', (snapshot) => {
       this.vm[this.key] = Helpers.createRecord(snapshot)
     }, this.onError)
-    this.source.once('value', this.onReady)
 
     this.off = Helpers.callOnceFn(() => {
       this.source.off('value', watcher)
+    })
+    return this.source.once('value').then(() => {
+      this.onReady()
     })
   }
 }

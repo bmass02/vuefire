@@ -7,7 +7,6 @@ export class DocumentBinder extends BaseBinder {
     if (!(this.source.firestore && this.source.collection)) {
       throw new Error('Not a valid Firestore DocumentReference to bind.')
     }
-    this.initialValue = {}
   }
 
   path () {
@@ -15,16 +14,24 @@ export class DocumentBinder extends BaseBinder {
   }
 
   init () {
-    this.onReadyOnce = Helpers.callOnceFn(this.onReady)
     this._init(this.initialValue)
   }
 
   bind () {
-    var off = this.source.onSnapshot((snapshot) => {
-      this.vm[this.key] = Helpers.createRecord(snapshot)
-      this.onReadyOnce()
-    }, this.onError)
+    return new Promise((resolve, reject) => {
+      var onReadyOnce = Helpers.callOnceFn(() => {
+        this.onReady()
+        resolve()
+      })
+      var off = this.source.onSnapshot((snapshot) => {
+        this.vm[this.key] = Helpers.createRecord(snapshot)
+        onReadyOnce()
+      }, (err) => {
+        this.onError(err)
+        reject(err)
+      })
 
-    this.off = Helpers.callOnceFn(off)
+      this.off = Helpers.callOnceFn(off)
+    })
   }
 }

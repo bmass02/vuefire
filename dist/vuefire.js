@@ -48,7 +48,9 @@ function callOnceFn (fn) {
 
 function createRecord (snapshot) {
   var record = snapshot.exists ? snapshot.data() : {};
-  record['.id'] = snapshot.id;
+  Object.defineProperty(record, '.id', {
+    value: snapshot.id
+  });
   record['.ref'] = snapshot.ref;
   return record
 }
@@ -71,7 +73,6 @@ var DocumentBinder = (function (BaseBinder$$1) {
     if (!(this.source.firestore && this.source.collection)) {
       throw new Error('Not a valid Firestore DocumentReference to bind.')
     }
-    this.initialValue = {};
   }
 
   if ( BaseBinder$$1 ) DocumentBinder.__proto__ = BaseBinder$$1;
@@ -83,19 +84,27 @@ var DocumentBinder = (function (BaseBinder$$1) {
   };
 
   DocumentBinder.prototype.init = function init () {
-    this.onReadyOnce = callOnceFn(this.onReady);
     this._init(this.initialValue);
   };
 
   DocumentBinder.prototype.bind = function bind () {
     var this$1 = this;
 
-    var off = this.source.onSnapshot(function (snapshot) {
-      this$1.vm[this$1.key] = createRecord(snapshot);
-      this$1.onReadyOnce();
-    }, this.onError);
+    return new Promise(function (resolve, reject) {
+      var onReadyOnce = callOnceFn(function () {
+        this$1.onReady();
+        resolve();
+      });
+      var off = this$1.source.onSnapshot(function (snapshot) {
+        this$1.vm[this$1.key] = createRecord(snapshot);
+        onReadyOnce();
+      }, function (err) {
+        this$1.onError(err);
+        reject(err);
+      });
 
-    this.off = callOnceFn(off);
+      this$1.off = callOnceFn(off);
+    })
   };
 
   return DocumentBinder;
@@ -119,7 +128,6 @@ var QueryBinder = (function (BaseBinder$$1) {
   };
 
   QueryBinder.prototype.init = function init () {
-    this.onReadyOnce = callOnceFn(this.onReady);
     this._init(this.initialValue);
   };
 
@@ -139,34 +147,42 @@ var QueryBinder = (function (BaseBinder$$1) {
     var this$1 = this;
 
     this.unbind();
-    var off = this.source.onSnapshot(function (results) {
-      results.docChanges.forEach(function (change) {
-        switch (change.type) {
-          case 'added': {
-            this$1.initialValue.splice(change.newIndex, 0, createRecord(change.doc));
-            this$1.add(change.newIndex, createRecord(change.doc));
-            break
-          }
-          case 'modified': {
-            var record = createRecord(change.doc);
-            if (change.oldIndex === change.newIndex) {
-              this$1.update(change.oldIndex, record);
-            } else {
-              this$1.delete(change.oldIndex);
-              this$1.add(change.newIndex, record);
-            }
-            break
-          }
-          case 'removed': {
-            this$1.delete(change.oldIndex);
-            break
-          }
-        }
+    return new Promise(function (resolve, reject) {
+      var onReadyOnce = callOnceFn(function () {
+        this$1.onReady();
+        resolve();
       });
-      this$1.onReadyOnce();
-    }, this.onError);
+      var off = this$1.source.onSnapshot(function (results) {
+        results.docChanges.forEach(function (change) {
+          switch (change.type) {
+            case 'added': {
+              this$1.add(change.newIndex, createRecord(change.doc));
+              break
+            }
+            case 'modified': {
+              var record = createRecord(change.doc);
+              if (change.oldIndex === change.newIndex) {
+                this$1.update(change.oldIndex, record);
+              } else {
+                this$1.delete(change.oldIndex);
+                this$1.add(change.newIndex, record);
+              }
+              break
+            }
+            case 'removed': {
+              this$1.delete(change.oldIndex);
+              break
+            }
+          }
+        });
+        onReadyOnce();
+      }, function (err) {
+        this$1.onError(err);
+        reject(err);
+      });
 
-    this.off = callOnceFn(off);
+      this$1.off = callOnceFn(off);
+    })
   };
 
   return QueryBinder;
@@ -285,7 +301,9 @@ var ArrayBinder = (function (BaseBinder$$1) {
       this$1.source.off('child_changed', onChange);
       this$1.source.off('child_moved', onMove);
     });
-    this.source.once('value', this.onReady.bind(this.vm));
+    return this.source.once('value').then(function () {
+      this$1.onReady();
+    })
   };
 
   return ArrayBinder;
@@ -315,11 +333,13 @@ var ObjectBinder = (function (BaseBinder$$1) {
     var watcher = this.source.on('value', function (snapshot) {
       this$1.vm[this$1.key] = createRecord$1(snapshot);
     }, this.onError);
-    this.source.once('value', this.onReady);
 
     this.off = callOnceFn(function () {
       this$1.source.off('value', watcher);
     });
+    return this.source.once('value').then(function () {
+      this$1.onReady();
+    })
   };
 
   return ObjectBinder;
@@ -360,16 +380,16 @@ function bind (vm, key, source) {
   readyCallback = readyCallback || (function () {});
   var BinderKlass = null;
   // bind based on initial value type
-  if (asObject) {
-    BinderKlass = source.firestore ? DocumentBinder : ObjectBinder;
+  if (source.firestore) {
+    BinderKlass = source.where ? QueryBinder : DocumentBinder;
   } else {
-    BinderKlass = source.firestore ? QueryBinder : ArrayBinder;
+    BinderKlass = asObject ? ObjectBinder : ArrayBinder;
   }
 
   var binder = new BinderKlass(vm, key, source, readyCallback.bind(vm), cancelCallback.bind(vm));
-  binder.init();
-  binder.bind();
   vm.$firebaseBinders[key] = binder;
+  binder.init();
+  return binder.bind()
 }
 
 /**
@@ -382,6 +402,7 @@ function unbind (vm, key) {
   var binder = vm.$firebaseBinders[key];
   if (binder) {
     binder.unbind();
+    delete vm.$firebaseBinders[key];
   }
 }
 
@@ -392,20 +413,20 @@ function unbind (vm, key) {
  */
 function ensureRefs (vm) {
   if (!vm.$firebaseBinders) {
-    vm.$firebaseBinders = Object.create(null);
+    Vue.util.defineReactive(vm, '$firebaseBinders', Object.create(null));
   }
 }
 
 var init = function () {
-  var this$1 = this;
-
   ensureRefs(this);
-  var bindings = this.$options.firebase;
-  if (typeof bindings === 'function') { bindings = bindings.call(this); }
-  if (!bindings) { return }
-  for (var key in bindings) {
-    bind(this$1, key, bindings[key]);
+  function bindAll (vm, bindings) {
+    if (typeof bindings === 'function') { bindings = bindings.call(this); }
+    for (var key in bindings) {
+      bind(vm, key, bindings[key]);
+    }
   }
+  bindAll(this, this.$options.firebase);
+  bindAll(this, this.$options.firestore);
 };
 
 var VueFireMixin = {
@@ -438,21 +459,21 @@ function install (_Vue) {
   // extend instance methods
   Vue.prototype.$bindAsObject = function (key, source, cancelCallback, readyCallback) {
     ensureRefs(this);
-    bind(this, key, {
+    return bind(this, key, {
       source: source,
       asObject: true,
       cancelCallback: cancelCallback,
       readyCallback: readyCallback
-    });
+    })
   };
 
   Vue.prototype.$bindAsArray = function (key, source, cancelCallback, readyCallback) {
     ensureRefs(this);
-    bind(this, key, {
+    return bind(this, key, {
       source: source,
       cancelCallback: cancelCallback,
       readyCallback: readyCallback
-    });
+    })
   };
 
   Vue.prototype.$unbind = function (key) {

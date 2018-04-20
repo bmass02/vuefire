@@ -27,11 +27,10 @@ beforeEach(async () => {
 })
 
 test('manually unbinds a collection', async () => {
-  const spy = jest.spyOn(vm._firestoreUnbinds, 'items')
+  const spy = jest.spyOn(vm.$firebaseBinders['items'], 'unbind')
   vm.$unbind('items')
   expect(spy).toHaveBeenCalled()
-  expect(Object.keys(vm._firestoreUnbinds)).toEqual(['item'])
-  expect(Object.keys(vm.$firestoreRefs)).toEqual(['item'])
+  expect(Object.keys(vm.$firebaseBinders)).toEqual(['item'])
   expect(vm.items).toEqual([])
   await collection.add({ text: 'foo' })
   expect(vm.items).toEqual([])
@@ -39,11 +38,10 @@ test('manually unbinds a collection', async () => {
 })
 
 test('manually unbinds a document', async () => {
-  const spy = jest.spyOn(vm._firestoreUnbinds, 'item')
+  const spy = jest.spyOn(vm.$firebaseBinders['item'], 'unbind')
   vm.$unbind('item')
   expect(spy).toHaveBeenCalled()
-  expect(Object.keys(vm._firestoreUnbinds)).toEqual(['items'])
-  expect(Object.keys(vm.$firestoreRefs)).toEqual(['items'])
+  expect(Object.keys(vm.$firebaseBinders)).toEqual(['items'])
   expect(vm.item).toEqual(null)
   await document.update({ foo: 'foo' })
   expect(vm.item).toEqual(null)

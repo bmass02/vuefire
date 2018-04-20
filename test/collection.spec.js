@@ -51,7 +51,7 @@ test('add properties', async () => {
 test('unbinds when the instance is destroyed', async () => {
   expect(vm.$firebaseBinders).toBeTruthy()
   expect(vm.items).toEqual([])
-  const spy = jest.spyOn(vm.$firebaseBinders, 'items')
+  const spy = jest.spyOn(vm.$firebaseBinders['items'], 'unbind')
   expect(() => {
     vm.$destroy()
   }).not.toThrow()

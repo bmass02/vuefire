@@ -35,16 +35,16 @@ function bind (vm, key, source) {
   readyCallback = readyCallback || (() => {})
   var BinderKlass = null
   // bind based on initial value type
-  if (asObject) {
-    BinderKlass = source.firestore ? Binders.DocumentBinder : Binders.ObjectBinder
+  if (source.firestore) {
+    BinderKlass = source.where ? Binders.QueryBinder : Binders.DocumentBinder
   } else {
-    BinderKlass = source.firestore ? Binders.QueryBinder : Binders.ArrayBinder
+    BinderKlass = asObject ? Binders.ObjectBinder : Binders.ArrayBinder
   }
 
   var binder = new BinderKlass(vm, key, source, readyCallback.bind(vm), cancelCallback.bind(vm))
-  binder.init()
-  binder.bind()
   vm.$firebaseBinders[key] = binder
+  binder.init()
+  return binder.bind()
 }
 
 /**
@@ -57,6 +57,7 @@ function unbind (vm, key) {
   var binder = vm.$firebaseBinders[key]
   if (binder) {
     binder.unbind()
+    delete vm.$firebaseBinders[key]
   }
 }
 
@@ -67,18 +68,20 @@ function unbind (vm, key) {
  */
 function ensureRefs (vm) {
   if (!vm.$firebaseBinders) {
-    vm.$firebaseBinders = Object.create(null)
+    Vue.util.defineReactive(vm, '$firebaseBinders', Object.create(null))
   }
 }
 
 var init = function () {
   ensureRefs(this)
-  var bindings = this.$options.firebase
-  if (typeof bindings === 'function') bindings = bindings.call(this)
-  if (!bindings) return
-  for (var key in bindings) {
-    bind(this, key, bindings[key])
+  function bindAll (vm, bindings) {
+    if (typeof bindings === 'function') bindings = bindings.call(this)
+    for (var key in bindings) {
+      bind(vm, key, bindings[key])
+    }
   }
+  bindAll(this, this.$options.firebase)
+  bindAll(this, this.$options.firestore)
 }
 
 var VueFireMixin = {
@@ -109,7 +112,7 @@ function install (_Vue) {
   // extend instance methods
   Vue.prototype.$bindAsObject = function (key, source, cancelCallback, readyCallback) {
     ensureRefs(this)
-    bind(this, key, {
+    return bind(this, key, {
       source: source,
       asObject: true,
       cancelCallback: cancelCallback,
@@ -119,7 +122,7 @@ function install (_Vue) {
 
   Vue.prototype.$bindAsArray = function (key, source, cancelCallback, readyCallback) {
     ensureRefs(this)
-    bind(this, key, {
+    return bind(this, key, {
       source: source,
       cancelCallback: cancelCallback,
       readyCallback: readyCallback

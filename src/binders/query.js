@@ -15,7 +15,6 @@ export class QueryBinder extends BaseBinder {
   }
 
   init () {
-    this.onReadyOnce = Helpers.callOnceFn(this.onReady)
     this._init(this.initialValue)
   }
 
@@ -33,33 +32,41 @@ export class QueryBinder extends BaseBinder {
 
   bind () {
     this.unbind()
-    var off = this.source.onSnapshot((results) => {
-      results.docChanges.forEach((change) => {
-        switch (change.type) {
-          case 'added': {
-            this.initialValue.splice(change.newIndex, 0, Helpers.createRecord(change.doc))
-            this.add(change.newIndex, Helpers.createRecord(change.doc))
-            break
-          }
-          case 'modified': {
-            const record = Helpers.createRecord(change.doc)
-            if (change.oldIndex === change.newIndex) {
-              this.update(change.oldIndex, record)
-            } else {
-              this.delete(change.oldIndex)
-              this.add(change.newIndex, record)
-            }
-            break
-          }
-          case 'removed': {
-            this.delete(change.oldIndex)
-            break
-          }
-        }
+    return new Promise((resolve, reject) => {
+      var onReadyOnce = Helpers.callOnceFn(() => {
+        this.onReady()
+        resolve()
       })
-      this.onReadyOnce()
-    }, this.onError)
+      var off = this.source.onSnapshot((results) => {
+        results.docChanges.forEach((change) => {
+          switch (change.type) {
+            case 'added': {
+              this.add(change.newIndex, Helpers.createRecord(change.doc))
+              break
+            }
+            case 'modified': {
+              const record = Helpers.createRecord(change.doc)
+              if (change.oldIndex === change.newIndex) {
+                this.update(change.oldIndex, record)
+              } else {
+                this.delete(change.oldIndex)
+                this.add(change.newIndex, record)
+              }
+              break
+            }
+            case 'removed': {
+              this.delete(change.oldIndex)
+              break
+            }
+          }
+        })
+        onReadyOnce()
+      }, (err) => {
+        this.onError(err)
+        reject(err)
+      })
 
-    this.off = Helpers.callOnceFn(off)
+      this.off = Helpers.callOnceFn(off)
+    })
   }
 }

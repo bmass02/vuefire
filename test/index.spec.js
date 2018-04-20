@@ -34,25 +34,25 @@ test('does nothing with no firestore', () => {
 })
 
 test('setups _firestoreUnbinds', () => {
-  expect(vm._firestoreUnbinds).toBeTruthy()
-  expect(Object.keys(vm._firestoreUnbinds).sort()).toEqual(['item', 'items'])
+  expect(vm.$firebaseBinders).toBeTruthy()
+  expect(Object.keys(vm.$firebaseBinders).sort()).toEqual(['item', 'items'])
 })
 
 test('setups _firestoreUnbinds with no firestore options', () => {
   const vm = new Vue({
     data: () => ({ items: null })
   })
-  expect(vm._firestoreUnbinds).toBeTruthy()
-  expect(Object.keys(vm._firestoreUnbinds)).toEqual([])
+  expect(vm.$firebaseBinders).toBeTruthy()
+  expect(Object.keys(vm.$firebaseBinders)).toEqual([])
 })
 
 test('setups $firestoreRefs', () => {
-  expect(Object.keys(vm.$firestoreRefs).sort()).toEqual(['item', 'items'])
-  expect(vm.$firestoreRefs.item).toBe(document)
-  expect(vm.$firestoreRefs.items).toBe(collection)
+  expect(Object.keys(vm.$firebaseBinders).sort()).toEqual(['item', 'items'])
+  expect(vm.$firebaseBinders.item.source).toBe(document)
+  expect(vm.$firebaseBinders.items.source).toBe(collection)
 })
 
 test('clears $firestoreRefs on $destroy', () => {
   vm.$destroy()
-  expect(vm.$firestoreRefs).toEqual(null)
+  expect(vm.$firebaseBinders).toEqual(null)
 })

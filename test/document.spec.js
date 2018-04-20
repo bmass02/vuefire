@@ -28,9 +28,9 @@ test('binds a document', () => {
 
 test('updates a document', async () => {
   await document.update({ foo: 'foo' })
-  expect(vm.item).toEqual({ foo: 'foo' })
+  expect(vm.item).toEqual({ '.id': document.id, '.ref': document, foo: 'foo' })
   await document.update({ bar: 'bar' })
-  expect(vm.item).toEqual({ foo: 'foo', bar: 'bar' })
+  expect(vm.item).toEqual({ '.id': document.id, '.ref': document, foo: 'foo', bar: 'bar' })
 })
 
 test('adds non-enumerable id', async () => {
