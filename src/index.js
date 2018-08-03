@@ -30,7 +30,7 @@ function bind (vm, key, options) {
     BinderKlass = options.asObject ? Binders.ObjectBinder : Binders.ArrayBinder
   }
 
-  var binder = new BinderKlass(vm, key, source, readyCallback.bind(vm), cancelCallback.bind(vm))
+  var binder = new BinderKlass(vm, key, source)
   vm.$firebaseBinders[key] = binder
   binder.init()
   return binder.bind()
