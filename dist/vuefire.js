@@ -9,17 +9,17 @@
 	(factory((global.Vuefire = {})));
 }(this, (function (exports) { 'use strict';
 
-var BaseBinder = function BaseBinder (vm, key, source, onReady, onError) {
+var BaseBinder = function BaseBinder (vm, key, source) {
   this.vm = vm;
   this.key = key;
   this.source = source;
-  this.onReady = onReady;
-  this.onError = onError;
   this.initialValue = null;
 };
 
 BaseBinder.prototype.bind = function bind () {
-  throw new Error('[bind] must be implemented in children.')
+  return new Promise(function () {
+    throw new Error('[bind] must be implemented in children.')
+  })
 };
 
 BaseBinder.prototype._init = function _init (value) {
@@ -67,8 +67,18 @@ function stringifyPath (ref) {
   return ref.firebase.segments.join('/')
 }
 
+
+
+function getDocChanges (querySnapshot) {
+  if (typeof querySnapshot.docChanges === 'function') {
+    return querySnapshot.docChanges()
+  }
+
+  return querySnapshot.docChanges
+}
+
 var DocumentBinder = (function (BaseBinder$$1) {
-  function DocumentBinder (vm, key, source, onReady, onError) {
+  function DocumentBinder (vm, key, source) {
     BaseBinder$$1.apply(this, arguments);
     if (!(this.source.firestore && this.source.collection)) {
       throw new Error('Not a valid Firestore DocumentReference to bind.')
@@ -91,17 +101,11 @@ var DocumentBinder = (function (BaseBinder$$1) {
     var this$1 = this;
 
     return new Promise(function (resolve, reject) {
-      var onReadyOnce = callOnceFn(function () {
-        this$1.onReady();
-        resolve();
-      });
+      var resolveOnce = callOnceFn(resolve);
       var off = this$1.source.onSnapshot(function (snapshot) {
         this$1.vm[this$1.key] = createRecord(snapshot);
-        onReadyOnce();
-      }, function (err) {
-        this$1.onError(err);
-        reject(err);
-      });
+        resolveOnce();
+      }, reject);
 
       this$1.off = callOnceFn(off);
     })
@@ -111,7 +115,7 @@ var DocumentBinder = (function (BaseBinder$$1) {
 }(BaseBinder));
 
 var QueryBinder = (function (BaseBinder$$1) {
-  function QueryBinder (vm, key, source, onReady, onError) {
+  function QueryBinder (vm, key, source) {
     BaseBinder$$1.apply(this, arguments);
     if (!(this.source.firestore && this.source.where)) {
       throw new Error('Not a valid Firestore CollectionReference or Query to bind.')
@@ -148,12 +152,10 @@ var QueryBinder = (function (BaseBinder$$1) {
 
     this.unbind();
     return new Promise(function (resolve, reject) {
-      var onReadyOnce = callOnceFn(function () {
-        this$1.onReady();
-        resolve();
-      });
+      var resolveOnce = callOnceFn(resolve);
+
       var off = this$1.source.onSnapshot(function (results) {
-        results.docChanges.forEach(function (change) {
+        getDocChanges(results).forEach(function (change) {
           switch (change.type) {
             case 'added': {
               this$1.add(change.newIndex, createRecord(change.doc));
@@ -175,11 +177,8 @@ var QueryBinder = (function (BaseBinder$$1) {
             }
           }
         });
-        onReadyOnce();
-      }, function (err) {
-        this$1.onError(err);
-        reject(err);
-      });
+        resolveOnce();
+      }, reject);
 
       this$1.off = callOnceFn(off);
     })
@@ -241,7 +240,7 @@ function createRecord$1 (snapshot) {
 }
 
 var ArrayBinder = (function (BaseBinder$$1) {
-  function ArrayBinder (vm, key, source, onReady, onError) {
+  function ArrayBinder (vm, key, source) {
     BaseBinder$$1.apply(this, arguments);
     if (typeof this.source.on !== 'function') {
       throw new Error('Not a valid source to bind.')
@@ -276,24 +275,24 @@ var ArrayBinder = (function (BaseBinder$$1) {
     var onAdd = this.source.on('child_added', function (snapshot, prevKey) {
       var index = prevKey ? indexForKey(this$1.initialValue, prevKey) + 1 : 0;
       this$1.add(index, createRecord$1(snapshot));
-    }, this.onError);
+    });
 
     var onRemove = this.source.on('child_removed', function (snapshot) {
       var index = indexForKey(this$1.initialValue, _getKey(snapshot));
       this$1.delete(index);
-    }, this.onError);
+    });
 
     var onChange = this.source.on('child_changed', function (snapshot) {
       var index = indexForKey(this$1.initialValue, _getKey(snapshot));
       this$1.update(index, createRecord$1(snapshot));
-    }, this.onError);
+    });
 
     var onMove = this.source.on('child_moved', function (snapshot, prevKey) {
       var index = indexForKey(this$1.initialValue, _getKey(snapshot));
       var record = this$1.delete(index);
       var newIndex = prevKey ? indexForKey(this$1.initialValue, prevKey) + 1 : 0;
       this$1.add(newIndex, record);
-    }, this.onError);
+    });
 
     this.off = callOnceFn(function () {
       this$1.source.off('child_added', onAdd);
@@ -301,16 +300,14 @@ var ArrayBinder = (function (BaseBinder$$1) {
       this$1.source.off('child_changed', onChange);
       this$1.source.off('child_moved', onMove);
     });
-    return this.source.once('value').then(function () {
-      this$1.onReady();
-    })
+    return this.source.once('value')
   };
 
   return ArrayBinder;
 }(BaseBinder));
 
 var ObjectBinder = (function (BaseBinder$$1) {
-  function ObjectBinder (vm, key, source, onReady, onError) {
+  function ObjectBinder (vm, key, source) {
     BaseBinder$$1.apply(this, arguments);
     if (typeof this.source.on !== 'function') {
       throw new Error('Not a valid source to bind.')
@@ -332,14 +329,12 @@ var ObjectBinder = (function (BaseBinder$$1) {
     this.unbind();
     var watcher = this.source.on('value', function (snapshot) {
       this$1.vm[this$1.key] = createRecord$1(snapshot);
-    }, this.onError);
+    });
 
     this.off = callOnceFn(function () {
       this$1.source.off('value', watcher);
     });
-    return this.source.once('value').then(function () {
-      this$1.onReady();
-    })
+    return this.source.once('value')
   };
 
   return ObjectBinder;
@@ -362,31 +357,19 @@ BaseBinder.prototype.defineReactive = function (vm, key, val) {
  * @param {string} key
  * @param {object} source
  */
-function bind (vm, key, source) {
-  var asObject = false;
-  var cancelCallback = null;
-  var readyCallback = null;
-  // check { source, asArray, cancelCallback } syntax
-  if (isObject(source) && source.hasOwnProperty('source')) {
-    asObject = source.asObject;
-    cancelCallback = source.cancelCallback;
-    readyCallback = source.readyCallback;
-    source = source.source;
-  }
-  if (!isObject(source)) {
+function bind (vm, key, options) {
+  if (!isObject(options.source)) {
     throw new Error('VueFire: invalid Firebase binding source.')
   }
-  cancelCallback = cancelCallback || (function () {});
-  readyCallback = readyCallback || (function () {});
   var BinderKlass = null;
   // bind based on initial value type
   if (source.firestore) {
     BinderKlass = source.where ? QueryBinder : DocumentBinder;
   } else {
-    BinderKlass = asObject ? ObjectBinder : ArrayBinder;
+    BinderKlass = options.asObject ? ObjectBinder : ArrayBinder;
   }
 
-  var binder = new BinderKlass(vm, key, source, readyCallback.bind(vm), cancelCallback.bind(vm));
+  var binder = new BinderKlass(vm, key, options.source, readyCallback.bind(vm), cancelCallback.bind(vm));
   vm.$firebaseBinders[key] = binder;
   binder.init();
   return binder.bind()
@@ -457,22 +440,18 @@ function install (_Vue) {
   mergeStrats.firebase = mergeStrats.provide;
 
   // extend instance methods
-  Vue.prototype.$bindAsObject = function (key, source, cancelCallback, readyCallback) {
+  Vue.prototype.$bindAsObject = function (key, source) {
     ensureRefs(this);
     return bind(this, key, {
       source: source,
       asObject: true,
-      cancelCallback: cancelCallback,
-      readyCallback: readyCallback
     })
   };
 
-  Vue.prototype.$bindAsArray = function (key, source, cancelCallback, readyCallback) {
+  Vue.prototype.$bindAsArray = function (key, source) {
     ensureRefs(this);
     return bind(this, key, {
       source: source,
-      cancelCallback: cancelCallback,
-      readyCallback: readyCallback
     })
   };
 
