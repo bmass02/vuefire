@@ -359,6 +359,7 @@ function bind (vm, key, options) {
   if (!isObject(options.source)) {
     throw new Error('VueFire: invalid Firebase binding source.')
   }
+  var source = options.source;
   var BinderKlass = null;
   // bind based on initial value type
   if (source.firestore) {
@@ -367,7 +368,7 @@ function bind (vm, key, options) {
     BinderKlass = options.asObject ? ObjectBinder : ArrayBinder;
   }
 
-  var binder = new BinderKlass(vm, key, options.source, readyCallback.bind(vm), cancelCallback.bind(vm));
+  var binder = new BinderKlass(vm, key, source, readyCallback.bind(vm), cancelCallback.bind(vm));
   vm.$firebaseBinders[key] = binder;
   binder.init();
   return binder.bind()
