@@ -8,5 +8,6 @@ declare module "vue/types/vue" {
     $bindAsObject(key: string, source: firebase.database.Reference): Promise<firebase.database.DataSnapshot>;
     $bindAsArray(key: string, source: firebase.firestore.CollectionReference | firebase.firestore.Query): Promise<firebase.firestore.QuerySnapshot>;
     $bindAsArray(key: string, source: firebase.database.Reference): Promise<firebase.database.DataSnapshot>;
+    $unbind(key: string): void;
   }
 }
