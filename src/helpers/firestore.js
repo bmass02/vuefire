@@ -1,3 +1,4 @@
+import * as common from './common'
 export * from './common'
 
 export function createRecord (snapshot) {
@@ -5,7 +6,7 @@ export function createRecord (snapshot) {
   Object.defineProperty(record, '.id', {
     value: snapshot.id
   })
-  record['.ref'] = snapshot.ref
+  record['.path'] = common.toPath(snapshot.ref, (doc) => doc.id)
   return record
 }
 

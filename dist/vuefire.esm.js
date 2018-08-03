@@ -40,12 +40,26 @@ function callOnceFn (fn) {
   return callOnce
 }
 
+function toPath (source, getIdent) {
+  if (!(isFirestoreDoc(source) || isFirebaseRef(source))) {
+    throw new Error('Only Firestore DocumentReferences can be converted to a path.')
+  }
+
+  var segments = [];
+  var stepper = source;
+  while (stepper) {
+    segments.unshift(getIdent(stepper));
+    stepper = stepper.parent;
+  }
+  return segments.join('/')
+}
+
 function createRecord (snapshot) {
   var record = snapshot.exists ? snapshot.data() : {};
   Object.defineProperty(record, '.id', {
     value: snapshot.id
   });
-  record['.ref'] = snapshot.ref;
+  record['.path'] = toPath(snapshot.ref, function (doc) { return doc.id; });
   return record
 }
 
@@ -229,7 +243,7 @@ function createRecord$1 (snapshot) {
     ? value
     : { '.value': value };
   res['.key'] = _getKey(snapshot);
-  res['.ref'] = _getRef(snapshot);
+  res['.path'] = toPath(_getRef(snapshot, _getKey));
   return res
 }
 

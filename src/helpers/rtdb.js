@@ -1,3 +1,4 @@
+import * as common from './common'
 export * from './common'
 
 /**
@@ -48,6 +49,6 @@ export function createRecord (snapshot) {
     ? value
     : { '.value': value }
   res['.key'] = _getKey(snapshot)
-  res['.ref'] = _getRef(snapshot)
+  res['.path'] = common.toPath(_getRef(snapshot, _getKey))
   return res
 }
