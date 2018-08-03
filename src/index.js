@@ -17,31 +17,19 @@ Binders.BaseBinder.prototype.defineReactive = function (vm, key, val) {
  * @param {string} key
  * @param {object} source
  */
-function bind (vm, key, source) {
-  var asObject = false
-  var cancelCallback = null
-  var readyCallback = null
-  // check { source, asArray, cancelCallback } syntax
-  if (Helpers.isObject(source) && source.hasOwnProperty('source')) {
-    asObject = source.asObject
-    cancelCallback = source.cancelCallback
-    readyCallback = source.readyCallback
-    source = source.source
-  }
-  if (!Helpers.isObject(source)) {
+function bind (vm, key, options) {
+  if (!Helpers.isObject(options.source)) {
     throw new Error('VueFire: invalid Firebase binding source.')
   }
-  cancelCallback = cancelCallback || (() => {})
-  readyCallback = readyCallback || (() => {})
   var BinderKlass = null
   // bind based on initial value type
   if (source.firestore) {
     BinderKlass = source.where ? Binders.QueryBinder : Binders.DocumentBinder
   } else {
-    BinderKlass = asObject ? Binders.ObjectBinder : Binders.ArrayBinder
+    BinderKlass = options.asObject ? Binders.ObjectBinder : Binders.ArrayBinder
   }
 
-  var binder = new BinderKlass(vm, key, source, readyCallback.bind(vm), cancelCallback.bind(vm))
+  var binder = new BinderKlass(vm, key, options.source, readyCallback.bind(vm), cancelCallback.bind(vm))
   vm.$firebaseBinders[key] = binder
   binder.init()
   return binder.bind()
@@ -110,22 +98,18 @@ function install (_Vue) {
   mergeStrats.firebase = mergeStrats.provide
 
   // extend instance methods
-  Vue.prototype.$bindAsObject = function (key, source, cancelCallback, readyCallback) {
+  Vue.prototype.$bindAsObject = function (key, source) {
     ensureRefs(this)
     return bind(this, key, {
-      source: source,
+      source,
       asObject: true,
-      cancelCallback: cancelCallback,
-      readyCallback: readyCallback
     })
   }
 
-  Vue.prototype.$bindAsArray = function (key, source, cancelCallback, readyCallback) {
+  Vue.prototype.$bindAsArray = function (key, source) {
     ensureRefs(this)
     return bind(this, key, {
-      source: source,
-      cancelCallback: cancelCallback,
-      readyCallback: readyCallback
+      source,
     })
   }
 

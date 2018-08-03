@@ -1,15 +1,15 @@
 export class BaseBinder {
-  constructor (vm, key, source, onReady, onError) {
+  constructor (vm, key, source) {
     this.vm = vm
     this.key = key
     this.source = source
-    this.onReady = onReady
-    this.onError = onError
     this.initialValue = null
   }
 
   bind () {
-    throw new Error('[bind] must be implemented in children.')
+    return new Promise(() => {
+      throw new Error('[bind] must be implemented in children.')
+    })
   }
 
   _init (value) {

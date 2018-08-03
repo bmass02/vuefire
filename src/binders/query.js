@@ -2,7 +2,7 @@ import { BaseBinder } from './base'
 import * as Helpers from '../helpers/firestore'
 
 export class QueryBinder extends BaseBinder {
-  constructor (vm, key, source, onReady, onError) {
+  constructor (vm, key, source) {
     super(...arguments)
     if (!(this.source.firestore && this.source.where)) {
       throw new Error('Not a valid Firestore CollectionReference or Query to bind.')
@@ -33,12 +33,10 @@ export class QueryBinder extends BaseBinder {
   bind () {
     this.unbind()
     return new Promise((resolve, reject) => {
-      var onReadyOnce = Helpers.callOnceFn(() => {
-        this.onReady()
-        resolve()
-      })
+      var resolveOnce = Helpers.callOnceFn(resolve)
+
       var off = this.source.onSnapshot((results) => {
-        results.docChanges.forEach((change) => {
+        Helpers.getDocChanges(results).forEach((change) => {
           switch (change.type) {
             case 'added': {
               this.add(change.newIndex, Helpers.createRecord(change.doc))
@@ -60,11 +58,8 @@ export class QueryBinder extends BaseBinder {
             }
           }
         })
-        onReadyOnce()
-      }, (err) => {
-        this.onError(err)
-        reject(err)
-      })
+        resolveOnce()
+      }, reject)
 
       this.off = Helpers.callOnceFn(off)
     })

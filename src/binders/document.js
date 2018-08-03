@@ -2,7 +2,7 @@ import { BaseBinder } from './base'
 import * as Helpers from '../helpers/firestore'
 
 export class DocumentBinder extends BaseBinder {
-  constructor (vm, key, source, onReady, onError) {
+  constructor (vm, key, source) {
     super(...arguments)
     if (!(this.source.firestore && this.source.collection)) {
       throw new Error('Not a valid Firestore DocumentReference to bind.')
@@ -19,17 +19,11 @@ export class DocumentBinder extends BaseBinder {
 
   bind () {
     return new Promise((resolve, reject) => {
-      var onReadyOnce = Helpers.callOnceFn(() => {
-        this.onReady()
-        resolve()
-      })
+      var resolveOnce = Helpers.callOnceFn(resolve)
       var off = this.source.onSnapshot((snapshot) => {
         this.vm[this.key] = Helpers.createRecord(snapshot)
-        onReadyOnce()
-      }, (err) => {
-        this.onError(err)
-        reject(err)
-      })
+        resolveOnce()
+      }, reject)
 
       this.off = Helpers.callOnceFn(off)
     })

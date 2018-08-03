@@ -24,3 +24,11 @@ export function stringifyPath (ref) {
 export function areEqual (ref1, ref2) {
   return stringifyPath(ref1) === stringifyPath(ref2)
 }
+
+export function getDocChanges (querySnapshot) {
+  if (typeof querySnapshot.docChanges === 'function') {
+    return querySnapshot.docChanges()
+  }
+
+  return querySnapshot.docChanges
+}

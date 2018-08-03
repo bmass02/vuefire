@@ -2,7 +2,7 @@ import { BaseBinder } from './base'
 import * as Helpers from '../helpers/rtdb'
 
 export class ObjectBinder extends BaseBinder {
-  constructor (vm, key, source, onReady, onError) {
+  constructor (vm, key, source) {
     super(...arguments)
     if (typeof this.source.on !== 'function') {
       throw new Error('Not a valid source to bind.')
@@ -18,13 +18,11 @@ export class ObjectBinder extends BaseBinder {
     this.unbind()
     var watcher = this.source.on('value', (snapshot) => {
       this.vm[this.key] = Helpers.createRecord(snapshot)
-    }, this.onError)
+    })
 
     this.off = Helpers.callOnceFn(() => {
       this.source.off('value', watcher)
     })
-    return this.source.once('value').then(() => {
-      this.onReady()
-    })
+    return this.source.once('value')
   }
 }

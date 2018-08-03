@@ -1,10 +1,12 @@
 import * as firebase from 'firebase';
 import Vue from 'vue';
 
-declare module 'vue/types/vue' {
+declare module "vue/types/vue" {
   interface Vue {
-    $bindAsObject: (key: string, ref: firebase.database.Reference | firebase.firestore.DocumentReference, errorCallback?: (err: any) => any, readyCallback?: () => any) => void
-    $bindAsArray: (key: string, ref: firebase.database.Reference | firebase.database.Query | firebase.firestore.CollectionReference | firebase.firestore.Query, errorCallback?: (err: any) => any, readyCallback?: () => any) => void
-    $unbind: (key: string) => void
+    $firebase: typeof firebase
+    $bindAsObject: (key: string, source: firebase.firestore.DocumentReference) => Promise<firebase.firestore.DocumentSnapshot>;
+    $bindAsObject: (key: string, source: firebase.database.Reference) => Promise<firebase.database.DataSnapshot>;
+    $bindAsArray: (key: string, source: firebase.firestore.CollectionReference | firebase.firestore.Query) => Promise<firebase.firestore.QuerySnapshot>;
+    $bindAsArray: (key: string, source: firebase.database.Reference) => Promise<firebase.database.DataSnapshot>;
   }
 }
