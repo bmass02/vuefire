@@ -8,6 +8,14 @@ export function callOnceFn (fn) {
   return callOnce
 }
 
+export function isFirestoreDoc (source) {
+  return 'collection' in source
+}
+
+export function isFirebaseRef (ref) {
+  return ref.hasOwnProperty('key')
+}
+
 export function toPath (source, getIdent) {
   if (!(isFirestoreDoc(source) || isFirebaseRef(source))) {
     throw new Error('Only Firestore DocumentReferences can be converted to a path.')

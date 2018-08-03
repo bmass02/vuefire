@@ -40,6 +40,14 @@ function callOnceFn (fn) {
   return callOnce
 }
 
+function isFirestoreDoc (source) {
+  return 'collection' in source
+}
+
+function isFirebaseRef (ref) {
+  return ref.hasOwnProperty('key')
+}
+
 function toPath (source, getIdent) {
   if (!(isFirestoreDoc(source) || isFirebaseRef(source))) {
     throw new Error('Only Firestore DocumentReferences can be converted to a path.')
