@@ -22,7 +22,7 @@ export class DocumentBinder extends BaseBinder {
       var resolveOnce = Helpers.callOnceFn(resolve)
       var off = this.source.onSnapshot((snapshot) => {
         this.vm[this.key] = Helpers.createRecord(snapshot)
-        resolveOnce()
+        resolveOnce(snapshot)
       }, reject)
 
       this.off = Helpers.callOnceFn(off)

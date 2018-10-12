@@ -124,7 +124,7 @@ var DocumentBinder = (function (BaseBinder$$1) {
       var resolveOnce = callOnceFn(resolve);
       var off = this$1.source.onSnapshot(function (snapshot) {
         this$1.vm[this$1.key] = createRecord(snapshot);
-        resolveOnce();
+        resolveOnce(snapshot);
       }, reject);
 
       this$1.off = callOnceFn(off);
@@ -197,7 +197,7 @@ var QueryBinder = (function (BaseBinder$$1) {
             }
           }
         });
-        resolveOnce();
+        resolveOnce(results);
       }, reject);
 
       this$1.off = callOnceFn(off);

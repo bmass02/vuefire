@@ -58,7 +58,7 @@ export class QueryBinder extends BaseBinder {
             }
           }
         })
-        resolveOnce()
+        resolveOnce(results)
       }, reject)
 
       this.off = Helpers.callOnceFn(off)
